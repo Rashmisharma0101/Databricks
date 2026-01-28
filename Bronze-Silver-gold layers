@@ -1,0 +1,38 @@
+CREATE DATABASE IF NOT EXISTS bronze;
+SHOW DATABASES;
+CREATE TABLE bronze.nyc_raw AS
+SELECT * FROM trips;
+
+select * from bronze.nyc_raw;
+create database if not exists silver;
+
+create or replace table silver.nyc_trips_clean as
+select 
+cast(tpep_pickup_datetime AS TIMESTAMP) as pickup_ts,
+cast(tpep_dropoff_datetime AS TIMESTAMP) as dropoff_ts,
+CAST(passenger_count AS INT) AS passenger_count,
+    CAST(trip_distance AS DOUBLE) AS trip_distance,
+    CAST(fare_amount AS DOUBLE) AS fare_amount,
+    CAST(total_amount AS DOUBLE) AS total_amount,
+    vendorid
+    from bronze.nyc_raw
+    where trip_distance >0  and total_amount > 0 and passenger_count is not null;
+
+    select * from silver.nyc_trips_clean;
+
+create database if not exists gold;
+
+CREATE OR REPLACE TABLE gold.daily_trip_metrics
+AS
+SELECT
+    DATE(pickup_ts) AS trip_date,
+    COUNT(*) AS total_trips,
+    SUM(total_amount) AS total_revenue,
+    AVG(total_amount) AS avg_trip_value,
+    AVG(trip_distance) AS avg_distance
+FROM silver.nyc_trips_clean
+GROUP BY DATE(pickup_ts)
+ORDER BY trip_date;
+
+select * from gold.daily_trip_metrics
+
